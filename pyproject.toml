@@ -1,7 +1,10 @@
 [project]
 name = "particule"
 version = "0.1.0"
-description = "Knowledge base with the Zettelkasten method and semantic tools.""
+description = "Knowledge base with the Zettelkasten method and semantic tools."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "sqlmodel>=0.0.42",
+]
