@@ -8,4 +8,5 @@ class Source(SQLModel, table=True):
     year: int
     edition: str
     publisher: str
-    particules: List["Particule"] = Relationship(back_populates="source", cascade_delete=True) # type: ignore
+    particules: List["Particule"] = Relationship(back_populates="source") # type: ignore
+    

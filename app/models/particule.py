@@ -1,11 +1,11 @@
 from typing import Optional
 from sqlmodel import Field, SQLModel, Relationship
-from source import Source
-from link import Link
-from particule_link import ParticuleLink
-from tag import Tag
-from particule_tag import ParticuleTag
-from knowledge_base import KnowledgeBase
+from app.models.source import Source
+from app.models.link import Link
+from app.models.particule_link import ParticuleLink
+from app.models.tag import Tag
+from app.models.particule_tag import ParticuleTag
+from app.models.knowledge_base import KnowledgeBase
 
 class Particule(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -17,5 +17,9 @@ class Particule(SQLModel, table=True):
     content: str
     #content_embedding: vector
     origins: str
+
+    source_id: int | None = Field(default=None, foreign_key="source.id", ondelete = "SET NULL" )
     source: Optional[Source] = Relationship(back_populates="particules")
+
+    knowledge_base_id: int = Field(foreign_key="knowledgebase.id")
     knowledge_base: KnowledgeBase = Relationship(back_populates="particules")
