@@ -1,11 +1,6 @@
 from typing import Optional
 from sqlmodel import Field, SQLModel, Relationship
-from app.models.source import Source
-from app.models.link import Link
-from app.models.particule_link import ParticuleLink
-from app.models.tag import Tag
-from app.models.particule_tag import ParticuleTag
-from app.models.knowledge_base import KnowledgeBase
+from app.models import Source, Link, ParticuleLink, Tag, ParticuleTag, KnowledgeBase
 
 class Particule(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)

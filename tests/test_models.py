@@ -10,6 +10,7 @@ from app.models.particule_link import ParticuleLink
 from app.models.particule_tag import ParticuleTag
 from app.models.source import Source
 from app.models.tag import Tag
+from app.models.user import User
 
 
 def make_particule(knowledge_base: KnowledgeBase, permalink: str = "note-1", **kwargs) -> Particule:
@@ -121,3 +122,34 @@ def test_delete_particule_removes_link_rows_only(session: Session):
     # Links and tags themselves stay, they may be used by other particules
     assert session.get(Link, link.id) is not None
     assert session.get(Tag, tag.id) is not None
+
+
+def make_user(username: str = "robin", email: str = "robin@example.com") -> User:
+    return User(username=username, email=email, hashed_password="not-a-real-hash")
+
+
+def test_create_user(session: Session):
+    user = make_user()
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    assert user.id is not None
+    assert user.is_active is True
+    assert user.created_at is not None
+
+
+def test_username_is_unique(session: Session):
+    session.add(make_user(email="first@example.com"))
+    session.add(make_user(email="second@example.com"))
+
+    with pytest.raises(IntegrityError):
+        session.commit()
+
+
+def test_email_is_unique(session: Session):
+    session.add(make_user(username="first"))
+    session.add(make_user(username="second"))
+
+    with pytest.raises(IntegrityError):
+        session.commit()

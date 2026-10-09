@@ -8,6 +8,7 @@ from app.models.link import Link
 from app.models.particule import Particule
 from app.models.source import Source
 from app.models.tag import Tag
+from app.models.user import User
 
 __all__ = [
     "KnowledgeBase",
@@ -17,4 +18,5 @@ __all__ = [
     "ParticuleTag",
     "Source",
     "Tag",
+    "User",
 ]

@@ -3,7 +3,7 @@ from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
 # Import every table model so SQLModel.metadata knows all tables before create_all
-import app.models.particule  # noqa: F401
+import app.models  # noqa: F401
 
 
 @pytest.fixture
