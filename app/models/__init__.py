@@ -8,7 +8,16 @@ from app.models.link import Link
 from app.models.particule import Particule
 from app.models.source import Source
 from app.models.tag import Tag
-from app.models.user import User
+from app.models.user import (
+    UpdatePassword,
+    User,
+    UserCreate,
+    UserPublic,
+    UserRegister,
+    UsersPublic,
+    UserUpdate,
+    UserUpdateMe,
+)
 from app.models.auth import Token, TokenPayload, NewPassword
 
 __all__ = [
@@ -20,7 +29,14 @@ __all__ = [
     "ParticuleTag",
     "Source",
     "Tag",
+    "UpdatePassword",
     "User",
+    "UserCreate",
+    "UserPublic",
+    "UserRegister",
+    "UsersPublic",
+    "UserUpdate",
+    "UserUpdateMe",
     "Token",
     "TokenPayload",
     "NewPassword"
