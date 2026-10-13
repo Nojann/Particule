@@ -1,8 +1,6 @@
 from sqlmodel import Session, create_engine, SQLModel
 
-from app.config import get_settings
-
-settings = get_settings()
+from app.config import settings 
 
 engine = create_engine(
     settings.database_url, 

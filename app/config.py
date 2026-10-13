@@ -6,5 +6,4 @@ class Settings(BaseSettings):
     project_name: str = "Particule"
     database_url: str
 
-def get_settings() -> Settings:
-    return Settings()
+settings = Settings()

@@ -1,9 +1,16 @@
+import uuid
+
 from typing import Optional
 from sqlmodel import Field, SQLModel, Relationship
-from app.models import Source, Link, ParticuleLink, Tag, ParticuleTag, KnowledgeBase
+from app.models.source import Source
+from app.models.link import Link
+from app.models.particule_link import ParticuleLink
+from app.models.tag import Tag
+from app.models.particule_tag import ParticuleTag
+from app.models.knowledge_base import KnowledgeBase
 
 class Particule(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     title: str = Field(index=True)
     #title_embedding: vector
     permalink: str = Field(unique=True)
@@ -13,8 +20,8 @@ class Particule(SQLModel, table=True):
     #content_embedding: vector
     origins: str
 
-    source_id: int | None = Field(default=None, foreign_key="source.id", ondelete = "SET NULL" )
+    source_id: uuid.UUID | None = Field(default=None, foreign_key="source.id", ondelete = "SET NULL" )
     source: Optional[Source] = Relationship(back_populates="particules")
 
-    knowledge_base_id: int = Field(foreign_key="knowledgebase.id")
+    knowledge_base_id: uuid.UUID = Field(foreign_key="knowledgebase.id")
     knowledge_base: KnowledgeBase = Relationship(back_populates="particules")

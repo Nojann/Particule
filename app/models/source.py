@@ -1,9 +1,11 @@
+import uuid
+
 from typing import List
 from sqlmodel import Field, SQLModel, Relationship
 
 
 class Source(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     authors: str
     year: int
     edition: str

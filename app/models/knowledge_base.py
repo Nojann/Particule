@@ -1,9 +1,20 @@
+import uuid
+
 from sqlmodel import Field, SQLModel, Relationship
-from app.models import User
+from datetime import UTC, datetime
 
-class KnowledgeBase(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    particules: list["Particule"] = Relationship(back_populates="knowledge_base") # type: ignore
+def get_datetime_utc() -> datetime:
+    return datetime.now(UTC)
 
-    user_id: int = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
-    user: User = Relationship(back_populates="knowledge_bases")  # type: ignore
+class KnowledgeBaseBase(SQLModel):
+    name: str = Field(max_length=255)
+
+class KnowledgeBase(KnowledgeBaseBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at:  datetime | None = Field(default_factory=get_datetime_utc())
+    owner_id: uuid.UUID = Field(foreign_key="user.id", index=True, ondelete="CASCADE")
+    owner: "User" = Relationship(back_populates="knowledge_bases")  # type: ignore
+    particules: list["Particule"] = Relationship(back_populates="knowledge_base", cascade_delete=True) # type: ignore
+
+class KnowledgeBaseCreate(KnowledgeBaseBase):
+    pass
