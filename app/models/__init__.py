@@ -9,6 +9,7 @@ from app.models.particule import Particule
 from app.models.source import Source
 from app.models.tag import Tag
 from app.models.user import User
+from app.models.auth import Token, TokenPayload, NewPassword
 
 __all__ = [
     "KnowledgeBase",
@@ -20,4 +21,7 @@ __all__ = [
     "Source",
     "Tag",
     "User",
+    "Token",
+    "TokenPayload",
+    "NewPassword"
 ]
