@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import col, delete, func, select
 from pydantic import EmailStr
 
-from app import crud
 from app.auth.deps import (
     CurrentUser,
     SessionDep,
@@ -17,7 +16,6 @@ from app.config import settings
 from app.auth.security import get_password_hash, verify_password
 from app.data import user as user_data
 from app.models import (
-    Message,
     UpdatePassword,
     User,
     UserCreate,
@@ -126,7 +124,7 @@ def update_user_me(
     return current_user
 
 
-@router.patch("/me/password", response_model=Message)
+@router.patch("/me/password", response_model=str)
 def update_password_me(
     *, session: SessionDep, body: UpdatePassword, current_user: CurrentUser
 ) -> Any:
@@ -141,7 +139,7 @@ def update_password_me(
             status_code=400, detail="New password cannot be the same as the current one"
         )
     user_data.update_password(session, current_user, body.new_password)
-    return Message(message="Password updated successfully")
+    return "Password updated successfully"
 
 
 @router.get("/me", response_model=UserPublic)
@@ -152,7 +150,7 @@ def read_user_me(current_user: CurrentUser) -> Any:
     return current_user
 
 
-@router.delete("/me", response_model=Message)
+@router.delete("/me", response_model=str)
 def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
     """
     Delete own user.
@@ -162,7 +160,7 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
     user_data.delete_user(session, current_user)
-    return Message(message="User deleted successfully")
+    return "User deleted successfully"
 
 
 @router.post("/signup", response_model=UserPublic)
@@ -214,7 +212,7 @@ def update_user(
 @router.delete("/{user_id}", dependencies=[Depends(get_current_active_superuser)])
 def delete_user(
     session: SessionDep, current_user: CurrentUser, user_id: uuid.UUID
-) -> Message:
+) -> str:
     """
     Delete a user.
     """
@@ -226,4 +224,4 @@ def delete_user(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
     user_data.delete_user(session, user)
-    return Message(message="User deleted successfully")
+    return "User deleted successfully"
