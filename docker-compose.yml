@@ -18,5 +18,27 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:                    
+  # Throwaway database for the test suite. Open credentials on purpose: it holds
+  # no real data, lives in memory (tmpfs) and is wiped by every test run.
+  # Start it with: docker compose --profile test up -d db-test
+  db-test:
+    image: mariadb:13.1.1-ubi10-rc
+    container_name: particule-db-test
+    profiles: ["test"]
+    environment:
+      MARIADB_ROOT_PASSWORD: particule
+      MARIADB_DATABASE: particule_test
+      MARIADB_USER: particule
+      MARIADB_PASSWORD: particule
+    ports:
+      - "3307:3306"
+    tmpfs:
+      - /var/lib/mysql:mode=1777
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
   mariadb_data:

@@ -1,23 +1,26 @@
+"""Root conftest: environment shared by every test (unit and integration).
+
+pytest loads conftest.py files from the root down, so this one runs before
+any test module or nested conftest imports `app.*`.
+
+Fixtures live in the conftest closest to where they are used:
+    tests/integration/conftest.py       engine, session, factories, auth_headers
+    tests/integration/api/conftest.py   client
+"""
+
 import os
-import pytest
-from sqlalchemy import create_engine
-from sqlmodel import Session, SQLModel
 
-@pytest.fixture(scope="session")
-def engine():
-    engine = create_engine(os.environ["TEST_DATABASE_URL"])
-    SQLModel.metadata.drop_all(engine)
-    SQLModel.metadata.create_all(engine)   # or run `alembic upgrade head` (see §6)
-    yield engine
-    engine.dispose()
+# Open values on purpose: they are not secrets, they only match the throwaway
+# `db-test` service in docker-compose.yml. setdefault: a real environment
+# variable wins, so CI can point elsewhere.
+os.environ.setdefault(
+    "TEST_DATABASE_URL",
+    "mysql+pymysql://particule:particule@localhost:3307/particule_test",
+)
+os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 
-@pytest.fixture
-def session(engine):
-    connection = engine.connect()
-    transaction = connection.begin()
-    # Your data layer calls session.commit(); this turns each commit into a SAVEPOINT
-    session = Session(bind=connection, join_transaction_mode="create_savepoint")
-    yield session
-    session.close()
-    transaction.rollback()                 # everything the test did disappears
-    connection.close()
+# `app.config` builds `Settings()` at import time, and environment variables
+# take precedence over .env. Pointing DATABASE_URL at the test database means
+# even code that bypasses dependency injection and uses `app.database.engine`
+# directly never touches the dev one.
+os.environ["DATABASE_URL"] = os.environ["TEST_DATABASE_URL"]

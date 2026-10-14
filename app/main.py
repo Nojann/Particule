@@ -7,7 +7,6 @@ from sqlmodel import SQLModel
 from app.models import *
 
 from app.config import settings
-from app.database import engine, create_db_and_tables
 from app.api import api_router
 
 @asynccontextmanager
