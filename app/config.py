@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     project_name: str = "Particule"
     database_url: str
+    SECRET_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 2880
     
 
 settings = Settings()

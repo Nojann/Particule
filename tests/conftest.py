@@ -1,20 +1,23 @@
+import os
 import pytest
-from sqlalchemy import event
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy import create_engine
+from sqlmodel import Session, SQLModel
 
-# Import every table model so SQLModel.metadata knows all tables before create_all
-import app.models  # noqa: F401
-
+@pytest.fixture(scope="session")
+def engine():
+    engine = create_engine(os.environ["TEST_DATABASE_URL"])
+    SQLModel.metadata.drop_all(engine)
+    SQLModel.metadata.create_all(engine)   # or run `alembic upgrade head` (see §6)
+    yield engine
+    engine.dispose()
 
 @pytest.fixture
-def session():
-    engine = create_engine("sqlite://")
-
-    # SQLite ignores foreign keys unless asked, Postgres always enforces them
-    @event.listens_for(engine, "connect")
-    def enable_foreign_keys(dbapi_connection, _):
-        dbapi_connection.execute("PRAGMA foreign_keys=ON")
-
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
+def session(engine):
+    connection = engine.connect()
+    transaction = connection.begin()
+    # Your data layer calls session.commit(); this turns each commit into a SAVEPOINT
+    session = Session(bind=connection, join_transaction_mode="create_savepoint")
+    yield session
+    session.close()
+    transaction.rollback()                 # everything the test did disappears
+    connection.close()

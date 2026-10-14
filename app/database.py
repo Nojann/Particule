@@ -11,9 +11,9 @@ engine = create_engine(
     #echo=settings.database_echo,    # log SQL queries (dev only)
 )
 
-def get_session():
-    with Session(engine) as session :
-        yield session
+# def get_session():
+#     with Session(engine) as session :
+#         yield session
 
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+# def create_db_and_tables():
+#     SQLModel.metadata.create_all(engine)

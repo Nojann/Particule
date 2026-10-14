@@ -24,7 +24,6 @@ def create_knowledge_base(session: Session, current_user: User, kb_in: Knowledge
     session.refresh(kb)
     return kb
 
-
 def delete_knowledge_base(session: Session, kb: KnowledgeBase) -> None:
     session.delete(kb)
     session.commit()
