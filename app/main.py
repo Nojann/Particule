@@ -13,7 +13,7 @@ from app.api import api_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     #startup
-    create_db_and_tables()
+    #create_db_and_tables()
     yield
     #shutdown
 
