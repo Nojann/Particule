@@ -51,6 +51,7 @@ class User(UserBase, table=True):
         )
     tags: list["Tag"] = Relationship(back_populates="owner", cascade_delete=True)  # type: ignore
     links: list["Link"] = Relationship(back_populates="owner", cascade_delete=True)  # type: ignore
+    sources: list["Source"] = Relationship(back_populates="owner", cascade_delete=True)  # type: ignore
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):

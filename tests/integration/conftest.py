@@ -6,7 +6,10 @@ Fixture map (pytest only builds a fixture when a test asks for it):
     └── session   (per test)       transaction rolled back after each test
         ├── make_user              factory: insert a User
         ├── make_kb                factory: insert a KnowledgeBase
-        └── make_particule         factory: insert a Particule
+        ├── make_particule         factory: insert a Particule
+        ├── make_tag               factory: insert a Tag
+        ├── make_link              factory: insert a Link
+        └── make_source            factory: insert a Source
     auth_headers                   factory: "Authorization: Bearer <jwt>" for a user
 
 Needs the throwaway test database (see docs/testing.md):
@@ -28,7 +31,7 @@ from sqlmodel import Session, SQLModel
 from app.auth.security import create_access_token, get_password_hash
 # Importing app.models runs its __init__, which registers every table on
 # SQLModel.metadata (needed by create_all below).
-from app.models import KnowledgeBase, Particule, User
+from app.models import KnowledgeBase, Link, Particule, Source, Tag, User
 
 TEST_PASSWORD = "test-password-123"
 
@@ -174,6 +177,74 @@ def make_particule(
         return particule
 
     return _make_particule
+
+
+@pytest.fixture
+def make_tag(session: Session, make_user: Callable[..., User]) -> Callable[..., Tag]:
+    """Insert a tag, owned by a new user unless `owner` is given.
+
+    Usage: physics = make_tag(owner=alice, tag="physics")
+    """
+
+    def _make_tag(owner: User | None = None, tag: str | None = None) -> Tag:
+        # Random name: (owner_id, tag) is unique, tests must not collide.
+        tag = Tag(tag=tag or f"tag-{uuid.uuid4().hex[:8]}", owner_id=(owner or make_user()).id)
+        session.add(tag)
+        session.commit()
+        session.refresh(tag)
+        return tag
+
+    return _make_tag
+
+
+@pytest.fixture
+def make_link(session: Session, make_user: Callable[..., User]) -> Callable[..., Link]:
+    """Insert a link, owned by a new user unless `owner` is given.
+
+    Usage: wiki = make_link(owner=alice, link="https://en.wikipedia.org")
+    """
+
+    def _make_link(owner: User | None = None, link: str | None = None) -> Link:
+        # Random URL: (owner_id, link) is unique, tests must not collide.
+        link = Link(
+            link=link or f"https://example.com/{uuid.uuid4().hex[:8]}",
+            owner_id=(owner or make_user()).id,
+        )
+        session.add(link)
+        session.commit()
+        session.refresh(link)
+        return link
+
+    return _make_link
+
+
+@pytest.fixture
+def make_source(session: Session, make_user: Callable[..., User]) -> Callable[..., Source]:
+    """Insert a source, owned by a new user unless `owner` is given.
+
+    Usage: book = make_source(owner=alice, authors="Feynman")
+    """
+
+    def _make_source(
+        owner: User | None = None,
+        authors: str = "Test author",
+        year: int = 2000,
+        edition: str = "1st",
+        publisher: str = "Test publisher",
+    ) -> Source:
+        source = Source(
+            authors=authors,
+            year=year,
+            edition=edition,
+            publisher=publisher,
+            owner_id=(owner or make_user()).id,
+        )
+        session.add(source)
+        session.commit()
+        session.refresh(source)
+        return source
+
+    return _make_source
 
 
 @pytest.fixture
