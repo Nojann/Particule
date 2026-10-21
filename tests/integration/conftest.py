@@ -5,7 +5,8 @@ Fixture map (pytest only builds a fixture when a test asks for it):
     engine        (once per run)   test database, schema created from the models
     └── session   (per test)       transaction rolled back after each test
         ├── make_user              factory: insert a User
-        └── make_kb                factory: insert a KnowledgeBase
+        ├── make_kb                factory: insert a KnowledgeBase
+        └── make_particule         factory: insert a Particule
     auth_headers                   factory: "Authorization: Bearer <jwt>" for a user
 
 Needs the throwaway test database (see docs/testing.md):
@@ -27,7 +28,7 @@ from sqlmodel import Session, SQLModel
 from app.auth.security import create_access_token, get_password_hash
 # Importing app.models runs its __init__, which registers every table on
 # SQLModel.metadata (needed by create_all below).
-from app.models import KnowledgeBase, User
+from app.models import KnowledgeBase, Particule, User
 
 TEST_PASSWORD = "test-password-123"
 
@@ -139,6 +140,40 @@ def make_kb(session: Session, make_user: Callable[..., User]) -> Callable[..., K
         return kb
 
     return _make_kb
+
+
+@pytest.fixture
+def make_particule(
+    session: Session, make_kb: Callable[..., KnowledgeBase]
+) -> Callable[..., Particule]:
+    """Insert a particule, in a new knowledge base unless `kb` is given.
+
+    Usage: p = make_particule(kb=physics, title="Entropy")
+    """
+
+    def _make_particule(
+        kb: KnowledgeBase | None = None,
+        title: str = "Test particule",
+        permalink: str | None = None,
+        content: str = "Some content",
+        origins: str = "Some origins",
+        **fields,
+    ) -> Particule:
+        particule = Particule(
+            title=title,
+            # Random permalink: the column is unique, tests must not collide.
+            permalink=permalink or f"particule-{uuid.uuid4().hex[:8]}",
+            content=content,
+            origins=origins,
+            knowledge_base_id=(kb or make_kb()).id,
+            **fields,
+        )
+        session.add(particule)
+        session.commit()
+        session.refresh(particule)
+        return particule
+
+    return _make_particule
 
 
 @pytest.fixture

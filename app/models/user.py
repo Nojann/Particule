@@ -49,6 +49,8 @@ class User(UserBase, table=True):
     knowledge_bases: list["KnowledgeBase"] = Relationship(  # type: ignore
             back_populates="owner", cascade_delete=True
         )
+    tags: list["Tag"] = Relationship(back_populates="owner", cascade_delete=True)  # type: ignore
+    links: list["Link"] = Relationship(back_populates="owner", cascade_delete=True)  # type: ignore
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):

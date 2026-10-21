@@ -9,19 +9,37 @@ from app.models.tag import Tag
 from app.models.particule_tag import ParticuleTag
 from app.models.knowledge_base import KnowledgeBase
 
-class Particule(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+class ParticuleBase(SQLModel):
     title: str = Field(index=True)
-    #title_embedding: vector
     permalink: str = Field(unique=True)
-    links: list[Link] = Relationship(back_populates="particules", link_model = ParticuleLink)
-    tags: list[Tag] = Relationship(back_populates="particules", link_model = ParticuleTag) 
     content: str
-    #content_embedding: vector
     origins: str
+
+class Particule(ParticuleBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    #title_embedding: vector
+    links: list[Link] = Relationship(back_populates="particules", link_model = ParticuleLink)
+    tags: list[Tag] = Relationship(back_populates="particules", link_model = ParticuleTag)
+    #content_embedding: vector
 
     source_id: uuid.UUID | None = Field(default=None, foreign_key="source.id", ondelete = "SET NULL" )
     source: Optional[Source] = Relationship(back_populates="particules")
 
     knowledge_base_id: uuid.UUID = Field(foreign_key="knowledgebase.id")
     knowledge_base: KnowledgeBase = Relationship(back_populates="particules")
+
+# knowledge_base_id is never accepted from the client: it comes from the URL
+class ParticuleCreate(ParticuleBase):
+    source_id: uuid.UUID | None = None
+
+class ParticuleUpdate(SQLModel):
+    title: str | None = None
+    permalink: str | None = None
+    content: str | None = None
+    origins: str | None = None
+    source_id: uuid.UUID | None = None
+
+class ParticulePublic(ParticuleBase):
+    id: uuid.UUID
+    source_id: uuid.UUID | None
+    knowledge_base_id: uuid.UUID

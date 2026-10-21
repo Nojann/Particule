@@ -5,7 +5,12 @@ from app.models.particule_tag import ParticuleTag
 
 from app.models.knowledge_base import KnowledgeBase, KnowledgeBaseCreate
 from app.models.link import Link
-from app.models.particule import Particule
+from app.models.particule import (
+    Particule,
+    ParticuleCreate,
+    ParticulePublic,
+    ParticuleUpdate,
+)
 from app.models.source import Source
 from app.models.tag import Tag
 from app.models.user import (
@@ -25,6 +30,9 @@ __all__ = [
     "KnowledgeBaseCreate",
     "Link",
     "Particule",
+    "ParticuleCreate",
+    "ParticulePublic",
+    "ParticuleUpdate",
     "ParticuleLink",
     "ParticuleTag",
     "Source",
