@@ -13,9 +13,6 @@ import pytest
 from app.auth.security import ALGORITHM
 from app.config import settings
 
-LOGIN = f"{settings.API_V1_STR}/login/access-token"
-TEST_TOKEN = f"{settings.API_V1_STR}/login/test-token"
-
 
 def make_token(sub: str, expires_in: timedelta = timedelta(minutes=5), key: str | None = None) -> str:
     """Build a JWT by hand, to test tokens the app would never issue itself."""
@@ -32,7 +29,7 @@ def test_login_returns_bearer_token(client, make_user):
     user = make_user(email="alice@example.com", password="alice-password")
 
     # OAuth2 password flow: form data, and the email goes in `username`.
-    r = client.post(LOGIN, data={"username": "alice@example.com", "password": "alice-password"})
+    r = client.post("/api/v1/login/access-token", data={"username": "alice@example.com", "password": "alice-password"})
 
     assert r.status_code == 200
     body = r.json()
@@ -45,7 +42,7 @@ def test_login_returns_bearer_token(client, make_user):
 def test_login_token_expires_after_configured_delay(client, make_user):
     make_user(email="alice@example.com", password="alice-password")
 
-    r = client.post(LOGIN, data={"username": "alice@example.com", "password": "alice-password"})
+    r = client.post("/api/v1/login/access-token", data={"username": "alice@example.com", "password": "alice-password"})
 
     payload = jwt.decode(r.json()["access_token"], settings.SECRET_KEY, algorithms=[ALGORITHM])
     expires_at = datetime.fromtimestamp(payload["exp"], UTC)
@@ -56,10 +53,10 @@ def test_login_token_expires_after_configured_delay(client, make_user):
 def test_login_token_gives_access_to_protected_routes(client, make_user):
     """End to end: log in, then use the token."""
     user = make_user(email="alice@example.com", password="alice-password")
-    r = client.post(LOGIN, data={"username": "alice@example.com", "password": "alice-password"})
+    r = client.post("/api/v1/login/access-token", data={"username": "alice@example.com", "password": "alice-password"})
     token = r.json()["access_token"]
 
-    r = client.post(TEST_TOKEN, headers=bearer(token))
+    r = client.post("/api/v1/login/test-token", headers=bearer(token))
 
     assert r.status_code == 200
     assert r.json()["id"] == str(user.id)
@@ -67,12 +64,12 @@ def test_login_token_gives_access_to_protected_routes(client, make_user):
 
 def test_login_with_wrong_password_fails(client, make_user):
     make_user(email="alice@example.com", password="alice-password")
-    r = client.post(LOGIN, data={"username": "alice@example.com", "password": "wrong-password"})
+    r = client.post("/api/v1/login/access-token", data={"username": "alice@example.com", "password": "wrong-password"})
     assert r.status_code == 400
 
 
 def test_login_with_unknown_email_fails(client):
-    r = client.post(LOGIN, data={"username": "nobody@example.com", "password": "any-password"})
+    r = client.post("/api/v1/login/access-token", data={"username": "nobody@example.com", "password": "any-password"})
     assert r.status_code == 400
 
 
@@ -81,10 +78,10 @@ def test_login_errors_do_not_reveal_whether_email_exists(client, make_user):
     make_user(email="alice@example.com", password="alice-password")
 
     wrong_password = client.post(
-        LOGIN, data={"username": "alice@example.com", "password": "wrong-password"}
+        "/api/v1/login/access-token", data={"username": "alice@example.com", "password": "wrong-password"}
     )
     unknown_email = client.post(
-        LOGIN, data={"username": "nobody@example.com", "password": "wrong-password"}
+        "/api/v1/login/access-token", data={"username": "nobody@example.com", "password": "wrong-password"}
     )
 
     assert wrong_password.status_code == unknown_email.status_code
@@ -93,7 +90,7 @@ def test_login_errors_do_not_reveal_whether_email_exists(client, make_user):
 
 def test_login_of_inactive_user_fails(client, make_user):
     make_user(email="alice@example.com", password="alice-password", is_active=False)
-    r = client.post(LOGIN, data={"username": "alice@example.com", "password": "alice-password"})
+    r = client.post("/api/v1/login/access-token", data={"username": "alice@example.com", "password": "alice-password"})
     assert r.status_code == 400
 
 
@@ -103,14 +100,14 @@ def test_login_of_inactive_user_fails(client, make_user):
     ids=["missing-password", "missing-username", "empty"],
 )
 def test_login_with_missing_fields_fails(client, data):
-    r = client.post(LOGIN, data=data)
+    r = client.post("/api/v1/login/access-token", data=data)
     assert r.status_code == 422
 
 
 def test_login_does_not_accept_json(client, make_user):
     # OAuth2 requires form data; a JSON body is a client error, not a login.
     make_user(email="alice@example.com", password="alice-password")
-    r = client.post(LOGIN, json={"username": "alice@example.com", "password": "alice-password"})
+    r = client.post("/api/v1/login/access-token", json={"username": "alice@example.com", "password": "alice-password"})
     assert r.status_code == 422
 
 
@@ -118,7 +115,7 @@ def test_login_does_not_accept_json(client, make_user):
 def test_test_token_returns_current_user(client, make_user, auth_headers):
     user = make_user()
 
-    r = client.post(TEST_TOKEN, headers=auth_headers(user))
+    r = client.post("/api/v1/login/test-token", headers=auth_headers(user))
 
     assert r.status_code == 200
     assert r.json()["id"] == str(user.id)
@@ -126,7 +123,7 @@ def test_test_token_returns_current_user(client, make_user, auth_headers):
 
 
 def test_test_token_without_token_fails(client):
-    r = client.post(TEST_TOKEN)
+    r = client.post("/api/v1/login/test-token")
     assert r.status_code == 401
 
 
@@ -134,7 +131,7 @@ def test_expired_token_is_rejected(client, make_user):
     user = make_user()
     token = make_token(str(user.id), expires_in=timedelta(minutes=-1))
 
-    r = client.post(TEST_TOKEN, headers=bearer(token))
+    r = client.post("/api/v1/login/test-token", headers=bearer(token))
 
     assert r.status_code == 403
 
@@ -144,7 +141,7 @@ def test_token_signed_with_another_key_is_rejected(client, make_user):
     user = make_user()
     token = make_token(str(user.id), key="attacker-key-of-sufficient-length-32b")
 
-    r = client.post(TEST_TOKEN, headers=bearer(token))
+    r = client.post("/api/v1/login/test-token", headers=bearer(token))
 
     assert r.status_code == 403
 
@@ -155,17 +152,17 @@ def test_unsigned_token_is_rejected(client, make_user):
     payload = {"sub": str(user.id), "exp": datetime.now(UTC) + timedelta(minutes=5)}
     token = jwt.encode(payload, key=None, algorithm="none")
 
-    r = client.post(TEST_TOKEN, headers=bearer(token))
+    r = client.post("/api/v1/login/test-token", headers=bearer(token))
 
     assert r.status_code == 403
 
 
 def test_token_of_unknown_user_is_rejected(client):
-    r = client.post(TEST_TOKEN, headers=bearer(make_token(str(uuid.uuid4()))))
+    r = client.post("/api/v1/login/test-token", headers=bearer(make_token(str(uuid.uuid4()))))
     assert r.status_code == 404
 
 
 def test_token_with_malformed_subject_is_rejected(client):
     """A `sub` that is not a UUID must be a clean 403, not a server error."""
-    r = client.post(TEST_TOKEN, headers=bearer(make_token("not-a-uuid")))
+    r = client.post("/api/v1/login/test-token", headers=bearer(make_token("not-a-uuid")))
     assert r.status_code == 403

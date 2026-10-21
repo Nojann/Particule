@@ -13,7 +13,7 @@ from app.auth.deps import (
     get_current_active_superuser,
 )
 from app.config import settings
-from app.auth.security import get_password_hash, verify_password
+from app.auth.security import verify_password
 from app.data import user as user_data
 from app.models import (
     UpdatePassword,
@@ -39,45 +39,27 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     """
     Retrieve users.
     """
-    return user_data.get_users(session, skip, limit)
+    users, count = user_data.get_users(session, skip, limit)
+    return UsersPublic(data=users, count=count)
 
-@router.get("/{user_id}", response_model=UserPublic)
-def read_user_by_id(
-    user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
-) -> Any:
-    """
-    Get a specific user by id.
-    """
-    user = user_data.get_user(session, user_id)
-    if user == current_user:
-        return user
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=403,
-            detail="The user doesn't have enough privileges",
-        )
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-@router.get("/{email}", response_model=UserPublic)
-def read_user_by_email(
-    email:EmailStr, session: SessionDep, current_user: CurrentUser
-) -> Any:
-    """
-    Get a specific user by email.
-    """
-    user = user_data.get_user_by_email(session, email)
-    if user == current_user:
-        return user
-    if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=403,
-            detail="The user doesn't have enough privileges",
-        )
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+# @router.get("/{email}", response_model=UserPublic)
+# def read_user_by_email(
+#     email:EmailStr, session: SessionDep, current_user: CurrentUser
+# ) -> Any:
+#     """
+#     Get a specific user by email.
+#     """
+#     user = user_data.get_user_by_email(session, email)
+#     if user == current_user:
+#         return user
+#     if not current_user.is_superuser:
+#         raise HTTPException(
+#             status_code=403,
+#             detail="The user doesn't have enough privileges",
+#         )
+#     if user is None:
+#         raise HTTPException(status_code=404, detail="User not found")
+#     return user
 
 @router.post(
     "/", dependencies=[Depends(get_current_active_superuser)], response_model=UserPublic
@@ -105,6 +87,12 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     #     )
     return user
 
+@router.get("/me", response_model=UserPublic)
+def read_user_me(current_user: CurrentUser) -> Any:
+    """
+    Get current user.
+    """
+    return current_user
 
 @router.patch("/me", response_model=UserPublic)
 def update_user_me(
@@ -141,15 +129,6 @@ def update_password_me(
     user_data.update_password(session, current_user, body.new_password)
     return "Password updated successfully"
 
-
-@router.get("/me", response_model=UserPublic)
-def read_user_me(current_user: CurrentUser) -> Any:
-    """
-    Get current user.
-    """
-    return current_user
-
-
 @router.delete("/me", response_model=str)
 def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
     """
@@ -178,6 +157,25 @@ def register_user(session: SessionDep, user_in: UserRegister) -> Any:
     user = user_data.create_user(session, user_create)
     return user
 
+@router.get("/{user_id}", response_model=UserPublic)
+def read_user_by_id(
+    user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
+) -> Any:
+    """
+    Get a specific user by id.
+    """
+    user = user_data.get_user(session, user_id)
+    if user == current_user:
+        return user
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=403,
+            detail="The user doesn't have enough privileges",
+        )
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
 @router.patch(
     "/{user_id}",
     dependencies=[Depends(get_current_active_superuser)],
@@ -199,7 +197,7 @@ def update_user(
             detail="The user with this id does not exist in the system",
         )
     if user_in.email:
-        existing_user = crud.get_user_by_email(session=session, email=user_in.email)
+        existing_user = user_data.get_user_by_email(session=session, email=user_in.email)
         if existing_user and existing_user.id != user_id:
             raise HTTPException(
                 status_code=409, detail="User with this email already exists"
