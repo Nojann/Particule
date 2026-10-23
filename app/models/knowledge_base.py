@@ -18,3 +18,6 @@ class KnowledgeBase(KnowledgeBaseBase, table=True):
 
 class KnowledgeBaseCreate(KnowledgeBaseBase):
     pass
+
+class KnowledgeBaseUpdate(KnowledgeBaseBase):
+    pass

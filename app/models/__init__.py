@@ -3,7 +3,7 @@
 from app.models.particule_link import ParticuleLink
 from app.models.particule_tag import ParticuleTag
 
-from app.models.knowledge_base import KnowledgeBase, KnowledgeBaseCreate
+from app.models.knowledge_base import KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate
 from app.models.link import Link, LinkCreate, LinkPublic, LinkUpdate
 from app.models.particule import (
     Particule,
@@ -28,6 +28,7 @@ from app.models.auth import Token, TokenPayload, NewPassword
 __all__ = [
     "KnowledgeBase",
     "KnowledgeBaseCreate",
+    "KnowledgeBaseUpdate",
     "Link",
     "LinkCreate",
     "LinkPublic",

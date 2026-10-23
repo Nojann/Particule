@@ -2,7 +2,7 @@ import uuid
 
 from sqlmodel import Session, select
 
-from app.models import KnowledgeBase, KnowledgeBaseCreate, User
+from app.models import KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate, User
 
 
 def get_knowledge_bases(session: Session, current_user: User) -> list[KnowledgeBase]:
@@ -19,6 +19,13 @@ def get_knowledge_base(session: Session, current_user: User, kb_id: uuid.UUID) -
 
 def create_knowledge_base(session: Session, current_user: User, kb_in: KnowledgeBaseCreate) -> KnowledgeBase:
     kb = KnowledgeBase.model_validate(kb_in, update={"owner_id": current_user.id})
+    session.add(kb)
+    session.commit()
+    session.refresh(kb)
+    return kb
+
+def update_knowledge_base(session: Session, kb: KnowledgeBase, kb_in: KnowledgeBaseUpdate) -> KnowledgeBase:
+    kb.sqlmodel_update(kb_in.model_dump(exclude_unset=True))
     session.add(kb)
     session.commit()
     session.refresh(kb)

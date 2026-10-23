@@ -19,6 +19,7 @@ from app.models import KnowledgeBase
         ("get", "/"),
         ("post", "/"),
         ("get", f"/{uuid.uuid4()}"),
+        ("patch", f"/{uuid.uuid4()}"),
         ("delete", f"/{uuid.uuid4()}"),
     ],
 )
@@ -145,6 +146,64 @@ def test_read_with_malformed_id_gets_422(client, make_user, auth_headers):
     user = make_user()
     r = client.get("/api/v1/knowledge-bases/not-a-uuid", headers=auth_headers(user))
     assert r.status_code == 422
+
+
+# --- PATCH /{kb_id} ----------------------------------------------------------
+def test_rename_own_knowledge_base(client, session, make_user, make_kb, auth_headers):
+    user = make_user()
+    kb = make_kb(owner=user, name="Phyiscs")
+
+    r = client.patch(f"/api/v1/knowledge-bases/{kb.id}", headers=auth_headers(user), json={"name": "Physics"})
+
+    assert r.status_code == 200
+    assert r.json()["name"] == "Physics"
+    session.refresh(kb)
+    assert kb.name == "Physics"
+
+
+def test_rename_ignores_owner_id_from_client(client, session, make_user, make_kb, auth_headers):
+    alice, bob = make_user(), make_user()
+    kb = make_kb(owner=bob)
+
+    r = client.patch(
+        f"/api/v1/knowledge-bases/{kb.id}",
+        headers=auth_headers(bob),
+        json={"name": "Physics", "owner_id": str(alice.id)},
+    )
+
+    assert r.status_code == 200
+    assert r.json()["owner_id"] == str(bob.id)
+    session.refresh(kb)
+    assert kb.owner_id == bob.id
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{}, {"name": None}, {"name": "x" * 256}],
+    ids=["missing-name", "null-name", "name-too-long"],
+)
+def test_rename_rejects_invalid_payload(client, make_user, make_kb, auth_headers, payload):
+    user = make_user()
+    kb = make_kb(owner=user)
+    r = client.patch(f"/api/v1/knowledge-bases/{kb.id}", headers=auth_headers(user), json=payload)
+    assert r.status_code == 422
+
+
+def test_cannot_rename_another_users_knowledge_base(client, session, make_user, make_kb, auth_headers):
+    alice, bob = make_user(), make_user()
+    kb = make_kb(owner=alice, name="Physics")
+
+    r = client.patch(f"/api/v1/knowledge-bases/{kb.id}", headers=auth_headers(bob), json={"name": "Hijacked"})
+
+    assert r.status_code == 404
+    session.refresh(kb)
+    assert kb.name == "Physics"
+
+
+def test_rename_unknown_knowledge_base_gets_404(client, make_user, auth_headers):
+    user = make_user()
+    r = client.patch(f"/api/v1/knowledge-bases/{uuid.uuid4()}", headers=auth_headers(user), json={"name": "Physics"})
+    assert r.status_code == 404
 
 
 # --- DELETE /{kb_id} ---------------------------------------------------------

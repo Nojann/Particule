@@ -108,6 +108,7 @@ Rules:
 | `GET`    | `/knowledge-bases/`       | List your knowledge bases    |
 | `POST`   | `/knowledge-bases/`       | Create a knowledge base      |
 | `GET`    | `/knowledge-bases/{kb_id}` | Read a knowledge base       |
+| `PATCH`  | `/knowledge-bases/{kb_id}` | Rename a knowledge base     |
 | `DELETE` | `/knowledge-bases/{kb_id}` | Delete it and its particules |
 
 Body: `{"name": "Physics"}`, with `name` up to 255 characters.
