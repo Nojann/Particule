@@ -6,6 +6,7 @@ Detailed query logic belongs in tests/integration/data/test_knowledge_base.py.
 """
 
 import uuid
+from datetime import datetime
 
 import pytest
 
@@ -61,6 +62,7 @@ def test_create_knowledge_base(client, session, make_user, auth_headers):
     assert body["name"] == "Physics"
     assert body["owner_id"] == str(user.id)
     assert body["created_at"] is not None
+    assert body["updated_at"] is not None
 
     kb = session.get(KnowledgeBase, uuid.UUID(body["id"]))
     assert kb is not None
@@ -159,6 +161,25 @@ def test_rename_own_knowledge_base(client, session, make_user, make_kb, auth_hea
     assert r.json()["name"] == "Physics"
     session.refresh(kb)
     assert kb.name == "Physics"
+
+
+def test_rename_refreshes_updated_at(client, session, make_user, make_kb, auth_headers):
+    user = make_user()
+    kb = make_kb(owner=user, name="Phyiscs")
+    # DATETIME keeps whole seconds: start from the past so the rename can't
+    # land in the same second as the creation.
+    before = datetime(2020, 1, 1)
+    kb.updated_at = before
+    session.add(kb)
+    session.commit()
+    created_at = kb.created_at
+
+    r = client.patch(f"/api/v1/knowledge-bases/{kb.id}", headers=auth_headers(user), json={"name": "Physics"})
+
+    assert r.status_code == 200
+    session.refresh(kb)
+    assert kb.updated_at > before
+    assert kb.created_at == created_at
 
 
 def test_rename_ignores_owner_id_from_client(client, session, make_user, make_kb, auth_headers):

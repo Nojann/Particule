@@ -3,6 +3,7 @@ import uuid
 from sqlmodel import Session, select
 
 from app.models import KnowledgeBase, KnowledgeBaseCreate, KnowledgeBaseUpdate, User
+from app.models.knowledge_base import get_datetime_utc
 
 
 def get_knowledge_bases(session: Session, current_user: User) -> list[KnowledgeBase]:
@@ -25,7 +26,7 @@ def create_knowledge_base(session: Session, current_user: User, kb_in: Knowledge
     return kb
 
 def update_knowledge_base(session: Session, kb: KnowledgeBase, kb_in: KnowledgeBaseUpdate) -> KnowledgeBase:
-    kb.sqlmodel_update(kb_in.model_dump(exclude_unset=True))
+    kb.sqlmodel_update(kb_in.model_dump(exclude_unset=True), update={"updated_at": get_datetime_utc()})
     session.add(kb)
     session.commit()
     session.refresh(kb)

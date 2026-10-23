@@ -118,9 +118,12 @@ Body: `{"name": "Physics"}`, with `name` up to 255 characters.
   "id": "0b3e…",
   "name": "Physics",
   "owner_id": "6f1c…",
-  "created_at": "2026-10-21T08:30:00"
+  "created_at": "2026-10-21T08:30:00",
+  "updated_at": "2026-10-21T08:30:00"
 }
 ```
+
+`updated_at` is set on creation and refreshed by every `PATCH`.
 
 ## Particules
 
