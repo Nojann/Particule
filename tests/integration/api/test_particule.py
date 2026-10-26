@@ -153,6 +153,17 @@ def test_create_particule(client, session, make_user, make_kb, auth_headers):
     assert particule.knowledge_base_id == kb.id
 
 
+def test_create_particule_with_long_content(client, make_user, make_kb, auth_headers):
+    user = make_user()
+    kb = make_kb(owner=user)
+    payload = particule_payload(content="x" * 5000)
+
+    r = client.post(particules_url(kb.id, "/"), headers=auth_headers(user), json=payload)
+
+    assert r.status_code == 201
+    assert r.json()["content"] == payload["content"]
+
+
 def test_created_particule_appears_in_list(client, make_user, make_kb, auth_headers):
     user = make_user()
     kb = make_kb(owner=user)

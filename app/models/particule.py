@@ -1,7 +1,7 @@
 import uuid
 
 from typing import Optional
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, SQLModel, Relationship, Text
 from app.models.source import Source
 from app.models.link import Link
 from app.models.particule_link import ParticuleLink
@@ -12,7 +12,8 @@ from app.models.knowledge_base import KnowledgeBase
 class ParticuleBase(SQLModel):
     title: str = Field(index=True)
     permalink: str = Field(unique=True)
-    content: str
+    # Text, not str: on MySQL a bare str becomes VARCHAR(255)
+    content: str = Field(sa_type=Text)
     origins: str
 
 class Particule(ParticuleBase, table=True):
