@@ -32,6 +32,7 @@ from app.auth.security import create_access_token, get_password_hash
 # Importing app.models runs its __init__, which registers every table on
 # SQLModel.metadata (needed by create_all below).
 from app.models import KnowledgeBase, Link, Particule, Source, Tag, User
+from app.models.source import SourceType
 
 TEST_PASSWORD = "test-password-123"
 
@@ -227,16 +228,22 @@ def make_source(session: Session, make_user: Callable[..., User]) -> Callable[..
 
     def _make_source(
         owner: User | None = None,
+        type: SourceType = SourceType.book,
+        title: str = "Test title",
         authors: str = "Test author",
-        year: int = 2000,
-        edition: str = "1st",
-        publisher: str = "Test publisher",
+        year: int | None = 2000,
+        edition: str | None = "1st",
+        publisher: str | None = "Test publisher",
+        **fields,
     ) -> Source:
         source = Source(
+            type=type,
+            title=title,
             authors=authors,
             year=year,
             edition=edition,
             publisher=publisher,
+            **fields,
             owner_id=(owner or make_user()).id,
         )
         session.add(source)

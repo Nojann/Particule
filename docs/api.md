@@ -188,22 +188,49 @@ A user can't have the same link twice (`409`), but two users can each have it.
 
 | Method   | Path                    | Description                          |
 | -------- | ----------------------- | ------------------------------------ |
-| `GET`    | `/sources/`             | List your sources, by authors then year |
+| `GET`    | `/sources/`             | List your sources, by title then year |
 | `POST`   | `/sources/`             | Create a source                      |
 | `GET`    | `/sources/{source_id}`  | Read a source                        |
 | `PATCH`  | `/sources/{source_id}`  | Update a source                      |
 | `DELETE` | `/sources/{source_id}`  | Delete a source                      |
 
-Body (all fields required on creation):
+Body:
 
 ```json
 {
-  "authors": "Richard Feynman",
-  "year": 1964,
-  "edition": "1st",
-  "publisher": "Addison-Wesley"
+  "type": "journal_article",
+  "title": "Space-Time Approach to Non-Relativistic Quantum Mechanics",
+  "authors": "Feynman, Richard",
+  "container_title": "Reviews of Modern Physics",
+  "volume": "20",
+  "issue": "2",
+  "pages": "367–387",
+  "doi": "10.1103/RevModPhys.20.367",
+  "published_date": "1948-04-01"
 }
 ```
+
+| Field             | Type                                                         | Required |
+| ----------------- | ------------------------------------------------------------ | -------- |
+| `type`            | `book`, `journal_article`, `book_chapter` or `web_page`      | yes      |
+| `title`           | string, up to 1024 characters                                | yes      |
+| `authors`         | free text, up to 1024 characters                             | yes      |
+| `editors`         | free text, up to 1024 characters                             | no       |
+| `container_title` | journal or book title, up to 1024 characters                 | per type |
+| `volume`, `issue`, `pages` | string, up to 64 characters                         | no       |
+| `doi`             | string, up to 255 characters                                 | no       |
+| `url`             | string, up to 2048 characters                                | per type |
+| `published_date`, `accessed_date` | date, `YYYY-MM-DD`                           | no       |
+| `year`            | integer, `null` for an undated source                        | no       |
+| `edition`, `publisher` | string, up to 255 characters                            | no       |
+
+Rules, checked on creation and on the result of every `PATCH` (`422` otherwise):
+
+- `journal_article` and `book_chapter` need a `container_title`; `web_page` needs a `url`.
+- When `year` is absent, it is taken from `published_date`. When both are given they must agree.
+  A `PATCH` that sends a new `published_date` without `year` sets the year again.
+
+A refused `PATCH` leaves the source unchanged. Undated sources come last in the list.
 
 The response adds `id` and `owner_id`. Unlike tags and links, the same source can be created twice.
 
