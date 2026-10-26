@@ -1,14 +1,44 @@
 import uuid
 
-from typing import List
+from datetime import date
+from enum import Enum
+from typing import List, Self
+from pydantic import model_validator
 from sqlmodel import Field, SQLModel, Relationship
 
 
+class SourceType(str, Enum):
+    book = "book"
+    journal_article = "journal_article"
+    book_chapter = "book_chapter"
+    web_page = "web_page"
+
+# Fields each type needs on top of title and authors
+REQUIRED_BY_TYPE: dict[SourceType, tuple[str, ...]] = {
+    SourceType.book: (),
+    SourceType.journal_article: ("container_title",),
+    SourceType.book_chapter: ("container_title",),
+    SourceType.web_page: ("url",),
+}
+
 class SourceBase(SQLModel):
-    authors: str
-    year: int
-    edition: str
-    publisher: str
+    type: SourceType
+    title: str = Field(max_length=1024)
+    # Free text, e.g. "Feynman, Richard; Leighton, Robert"
+    authors: str = Field(max_length=1024)
+    editors: str | None = Field(default=None, max_length=1024)
+    container_title: str | None = Field(default=None, max_length=1024)
+    volume: str | None = Field(default=None, max_length=64)
+    issue: str | None = Field(default=None, max_length=64)
+    pages: str | None = Field(default=None, max_length=64)
+    doi: str | None = Field(default=None, max_length=255)
+    url: str | None = Field(default=None, max_length=2048)
+    published_date: date | None = None
+    accessed_date: date | None = None
+    # null for an undated source (« s.d. »)
+    year: int | None = None
+    edition: str | None = Field(default=None, max_length=255)
+    publisher: str | None = Field(default=None, max_length=255)
 
 # Sources belong to a user: two users can each have their own entry for the same book.
 class Source(SourceBase, table=True):
@@ -18,14 +48,36 @@ class Source(SourceBase, table=True):
     particules: List["Particule"] = Relationship(back_populates="source") # type: ignore
 
 class SourceCreate(SourceBase):
-    pass
+    @model_validator(mode="after")
+    def check_consistency(self) -> Self:
+        if self.published_date is not None:
+            if self.year is None:
+                self.year = self.published_date.year
+            elif self.year != self.published_date.year:
+                raise ValueError("year must match published_date")
+        missing = [f for f in REQUIRED_BY_TYPE[self.type] if getattr(self, f) is None]
+        if missing:
+            raise ValueError(f"{self.type.value} requires {', '.join(missing)}")
+        return self
 
-# Properties to receive via API on update, all are optional
+# Properties to receive via API on update, all are optional.
+# The merged result is validated again with SourceCreate (see data.update_source).
 class SourceUpdate(SQLModel):
-    authors: str | None = None
+    type: SourceType | None = None
+    title: str | None = Field(default=None, max_length=1024)
+    authors: str | None = Field(default=None, max_length=1024)
+    editors: str | None = Field(default=None, max_length=1024)
+    container_title: str | None = Field(default=None, max_length=1024)
+    volume: str | None = Field(default=None, max_length=64)
+    issue: str | None = Field(default=None, max_length=64)
+    pages: str | None = Field(default=None, max_length=64)
+    doi: str | None = Field(default=None, max_length=255)
+    url: str | None = Field(default=None, max_length=2048)
+    published_date: date | None = None
+    accessed_date: date | None = None
     year: int | None = None
-    edition: str | None = None
-    publisher: str | None = None
+    edition: str | None = Field(default=None, max_length=255)
+    publisher: str | None = Field(default=None, max_length=255)
 
 class SourcePublic(SourceBase):
     id: uuid.UUID

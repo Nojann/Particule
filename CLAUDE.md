@@ -81,6 +81,8 @@ tests/         # unit/ and integration/ (api/, data/), test_migrations.py
 - **API docs.** Any added or changed route, or changed convention, updates
   `docs/api.md` in the same change.
 - Match the surrounding code: naming, comment density, idioms.
+- Edit files with the Edit/Write tools, never through a shell command (`python`, `sed`,
+  heredoc…) when the file can be edited directly.
 
 ## Build & run
 

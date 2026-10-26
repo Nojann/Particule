@@ -15,7 +15,9 @@ URL = "/api/v1/sources"
 
 def source_payload(**overrides) -> dict:
     payload = {
-        "authors": "Richard Feynman",
+        "type": "book",
+        "title": "The Feynman Lectures on Physics",
+        "authors": "Feynman, Richard; Leighton, Robert; Sands, Matthew",
         "year": 1964,
         "edition": "1st",
         "publisher": "Addison-Wesley",
@@ -62,30 +64,32 @@ def test_list_returns_only_own_sources(client, make_user, make_source, auth_head
     assert {s["id"] for s in r.json()} == {str(feynman.id), str(landau.id)}
 
 
-def test_list_is_sorted_by_authors_then_year(client, make_user, make_source, auth_headers):
+def test_list_is_sorted_by_title_then_year_undated_last(client, make_user, make_source, auth_headers):
     user = make_user()
-    make_source(owner=user, authors="Landau", year=1960)
-    make_source(owner=user, authors="Feynman", year=1965)
-    make_source(owner=user, authors="Feynman", year=1963)
+    make_source(owner=user, title="QED", year=1985)
+    make_source(owner=user, title="Lectures", year=None)
+    make_source(owner=user, title="Lectures", year=1965)
+    make_source(owner=user, title="Lectures", year=1963)
 
     r = client.get(f"{URL}/", headers=auth_headers(user))
 
-    assert [(s["authors"], s["year"]) for s in r.json()] == [
-        ("Feynman", 1963),
-        ("Feynman", 1965),
-        ("Landau", 1960),
+    assert [(s["title"], s["year"]) for s in r.json()] == [
+        ("Lectures", 1963),
+        ("Lectures", 1965),
+        ("Lectures", None),
+        ("QED", 1985),
     ]
 
 
 def test_list_is_paginated(client, make_user, make_source, auth_headers):
     user = make_user()
-    for authors in ["A", "B", "C", "D"]:
-        make_source(owner=user, authors=authors)
+    for title in ["A", "B", "C", "D"]:
+        make_source(owner=user, title=title)
 
     r = client.get(f"{URL}/", headers=auth_headers(user), params={"skip": 1, "limit": 2})
 
     assert r.status_code == 200
-    assert [s["authors"] for s in r.json()] == ["B", "C"]
+    assert [s["title"] for s in r.json()] == ["B", "C"]
 
 
 # --- POST / ------------------------------------------------------------------
@@ -138,7 +142,36 @@ def test_same_source_can_be_created_twice(client, make_user, auth_headers):
     assert first.json()["id"] != second.json()["id"]
 
 
-@pytest.mark.parametrize("missing", ["authors", "year", "edition", "publisher"])
+def test_create_full_journal_article(client, make_user, auth_headers):
+    user = make_user()
+    payload = {
+        "type": "journal_article",
+        "title": "Space-Time Approach to Non-Relativistic Quantum Mechanics",
+        "authors": "Feynman, Richard",
+        "editors": "Condon, Edward",
+        "container_title": "Reviews of Modern Physics",
+        "volume": "20",
+        "issue": "2",
+        "pages": "367–387",
+        "doi": "10.1103/RevModPhys.20.367",
+        "url": "https://doi.org/10.1103/RevModPhys.20.367",
+        "published_date": "1948-04-01",
+        "accessed_date": "2026-10-26",
+    }
+
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=payload)
+
+    assert r.status_code == 201
+    body = r.json()
+    for field, value in payload.items():
+        assert body[field] == value
+    # Derived from published_date
+    assert body["year"] == 1948
+    assert body["edition"] is None
+    assert body["publisher"] is None
+
+
+@pytest.mark.parametrize("missing", ["type", "title", "authors"])
 def test_create_rejects_missing_field(client, make_user, auth_headers, missing):
     user = make_user()
     payload = source_payload()
@@ -149,9 +182,52 @@ def test_create_rejects_missing_field(client, make_user, auth_headers, missing):
     assert r.status_code == 422
 
 
+@pytest.mark.parametrize("optional", ["year", "edition", "publisher"])
+def test_create_accepts_missing_optional_field(client, make_user, auth_headers, optional):
+    user = make_user()
+    payload = source_payload()
+    del payload[optional]
+
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=payload)
+
+    assert r.status_code == 201
+    assert r.json()[optional] is None
+
+
+def test_create_undated_source(client, make_user, auth_headers):
+    user = make_user()
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(year=None))
+    assert r.status_code == 201
+    assert r.json()["year"] is None
+
+
 def test_create_rejects_non_integer_year(client, make_user, auth_headers):
     user = make_user()
     r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(year="sixties"))
+    assert r.status_code == 422
+
+
+def test_create_rejects_unknown_type(client, make_user, auth_headers):
+    user = make_user()
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(type="thesis"))
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("type", "required"),
+    [("journal_article", "container_title"), ("book_chapter", "container_title"), ("web_page", "url")],
+)
+def test_create_rejects_type_without_required_field(client, make_user, auth_headers, type, required):
+    user = make_user()
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(type=type))
+    assert r.status_code == 422
+
+
+def test_create_rejects_year_not_matching_published_date(client, make_user, auth_headers):
+    user = make_user()
+    r = client.post(
+        f"{URL}/", headers=auth_headers(user), json=source_payload(year=1964, published_date="1970-01-01")
+    )
     assert r.status_code == 422
 
 
@@ -211,6 +287,71 @@ def test_update_keeps_fields_not_sent(client, make_user, make_source, auth_heade
     assert r.status_code == 200
     assert r.json()["authors"] == "Feynman"
     assert r.json()["year"] == 1964
+
+
+def test_update_rejects_type_change_without_required_field(
+    client, session, make_user, make_source, auth_headers
+):
+    """The merged source is validated: a book becoming a web page needs a url."""
+    user = make_user()
+    source = make_source(owner=user)
+
+    r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"type": "web_page"})
+
+    assert r.status_code == 422
+    session.refresh(source)
+    assert source.type == "book"
+
+
+def test_update_type_with_required_field(client, make_user, make_source, auth_headers):
+    user = make_user()
+    source = make_source(owner=user)
+
+    r = client.patch(
+        f"{URL}/{source.id}",
+        headers=auth_headers(user),
+        json={"type": "web_page", "url": "https://example.org"},
+    )
+
+    assert r.status_code == 200
+    assert r.json()["type"] == "web_page"
+
+
+def test_update_rejects_null_required_field(client, session, make_user, make_source, auth_headers):
+    user = make_user()
+    source = make_source(owner=user, title="QED")
+
+    r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"title": None})
+
+    assert r.status_code == 422
+    session.refresh(source)
+    assert source.title == "QED"
+
+
+def test_update_published_date_sets_year_again(client, make_user, make_source, auth_headers):
+    user = make_user()
+    source = make_source(owner=user, year=2000)
+
+    r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"published_date": "2010-05-01"})
+
+    assert r.status_code == 200
+    assert r.json()["year"] == 2010
+
+
+def test_update_rejects_year_not_matching_published_date(client, session, make_user, make_source, auth_headers):
+    user = make_user()
+    source = make_source(owner=user, year=2000)
+
+    r = client.patch(
+        f"{URL}/{source.id}",
+        headers=auth_headers(user),
+        json={"published_date": "2010-05-01", "year": 2011},
+    )
+
+    assert r.status_code == 422
+    session.refresh(source)
+    assert source.year == 2000
+    assert source.published_date is None
 
 
 def test_cannot_update_another_users_source(client, session, make_user, make_source, auth_headers):

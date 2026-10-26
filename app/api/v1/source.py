@@ -2,6 +2,8 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 
 from app.auth.deps import CurrentUser, SessionDep
 from app.data import source as source_data
@@ -31,7 +33,11 @@ def create_source(session: SessionDep, current_user: CurrentUser, source_in: Sou
 
 @router.patch("/{source_id}", response_model=SourcePublic)
 def update_source(session: SessionDep, source: OwnedSource, source_in: SourceUpdate) -> Source:
-    return source_data.update_source(session, source, source_in)
+    try:
+        return source_data.update_source(session, source, source_in)
+    except ValidationError as e:
+        # The merged source breaks a SourceCreate rule: answer 422 like any invalid body
+        raise RequestValidationError(e.errors(include_url=False))
 
 @router.delete("/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_source(session: SessionDep, source: OwnedSource) -> None:

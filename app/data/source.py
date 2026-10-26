@@ -9,7 +9,8 @@ def get_sources(session: Session, current_user: User, skip: int = 0, limit: int 
     statement = (
         select(Source)
         .where(Source.owner_id == current_user.id)
-        .order_by(Source.authors, Source.year)
+        # Undated sources (year is null) last
+        .order_by(Source.title, Source.year.is_(None), Source.year)
         .offset(skip)
         .limit(limit)
     )
@@ -29,7 +30,19 @@ def create_source(session: Session, current_user: User, source_in: SourceCreate)
     return source
 
 def update_source(session: Session, source: Source, source_in: SourceUpdate) -> Source:
-    source.sqlmodel_update(source_in.model_dump(exclude_unset=True))
+    """Apply a partial update, then check the merged source with SourceCreate's rules.
+
+    Raises pydantic.ValidationError, before touching the row, if the result is invalid.
+    """
+    # retains only the fields explicitly provided by the client
+    update = source_in.model_dump(exclude_unset=True)
+    # build the final state, from SourceCreate
+    merged = source.model_dump(include=set(SourceCreate.model_fields)) | update
+    # A new published_date sets the year again, unless the year is sent too
+    if update.get("published_date") is not None and "year" not in update:
+        merged["year"] = None
+    validated = SourceCreate.model_validate(merged)
+    source.sqlmodel_update(validated.model_dump())
     session.add(source)
     session.commit()
     session.refresh(source)
