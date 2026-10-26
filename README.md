@@ -67,10 +67,11 @@ The API is served at http://localhost:8000, with interactive docs at http://loca
 ## Tests
 
 ```bash
+docker compose --profile test up -d db-test
 uv run pytest
 ```
 
-Tests use an in-memory SQLite database, so they don't need Docker.
+Tests run against a throwaway MariaDB (`db-test`, port 3307, data kept in memory and wiped on every run). Without it, integration tests are skipped.
 
 ## Project structure
 
