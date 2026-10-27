@@ -87,3 +87,48 @@ def test_type_requires_field(type, required, value):
     make(type=type, **{required: value})
     with pytest.raises(ValidationError, match=f"{type} requires {required}"):
         make(type=type)
+
+
+# Fields that satisfy each type's rules, authors aside
+VALID_BY_TYPE = {
+    "book": {},
+    "journal_article": {"container_title": "Physical Review"},
+    "book_chapter": {"container_title": "The Feynman Lectures"},
+    "web_page": {"url": "https://example.org"},
+    "other": {},
+}
+
+
+@pytest.mark.parametrize("type", ["book", "journal_article", "book_chapter", "web_page"])
+@pytest.mark.parametrize("absent", ["missing", "null"])
+def test_type_requires_authors(type, absent):
+    fields = {"type": type, "title": "QED", **VALID_BY_TYPE[type]}
+    if absent == "null":
+        fields["authors"] = None
+
+    with pytest.raises(ValidationError, match=f"{type} requires authors"):
+        SourceCreate.model_validate(fields)
+
+
+# --- other type ---------------------------------------------------------------
+def test_other_needs_only_a_title():
+    source = SourceCreate.model_validate({"type": "other", "title": "Conversation with Alice"})
+
+    assert source.type is SourceType.other
+    assert source.authors is None
+
+
+def test_other_accepts_authors():
+    assert make(type="other", authors="Alice").authors == "Alice"
+
+
+# --- note ---------------------------------------------------------------------
+@pytest.mark.parametrize("type", list(VALID_BY_TYPE))
+def test_note_is_accepted_on_every_type(type):
+    source = make(type=type, note="Why it matters", **VALID_BY_TYPE[type])
+
+    assert source.note == "Why it matters"
+
+
+def test_note_defaults_to_none():
+    assert make().note is None

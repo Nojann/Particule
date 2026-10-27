@@ -4,7 +4,7 @@ from datetime import date
 from enum import Enum
 from typing import List, Self
 from pydantic import model_validator
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, SQLModel, Relationship, Text
 
 
 class SourceType(str, Enum):
@@ -12,20 +12,23 @@ class SourceType(str, Enum):
     journal_article = "journal_article"
     book_chapter = "book_chapter"
     web_page = "web_page"
+    # Catch-all (podcast, lecture, conversation…): only a title is required
+    other = "other"
 
-# Fields each type needs on top of title and authors
+# Fields each type needs on top of title
 REQUIRED_BY_TYPE: dict[SourceType, tuple[str, ...]] = {
-    SourceType.book: (),
-    SourceType.journal_article: ("container_title",),
-    SourceType.book_chapter: ("container_title",),
-    SourceType.web_page: ("url",),
+    SourceType.book: ("authors",),
+    SourceType.journal_article: ("authors", "container_title"),
+    SourceType.book_chapter: ("authors", "container_title"),
+    SourceType.web_page: ("authors", "url"),
+    SourceType.other: (),
 }
 
 class SourceBase(SQLModel):
     type: SourceType
     title: str = Field(max_length=1024)
-    # Free text, e.g. "Feynman, Richard; Leighton, Robert"
-    authors: str = Field(max_length=1024)
+    # Free text, e.g. "Feynman, Richard; Leighton, Robert". Required except for other.
+    authors: str | None = Field(default=None, max_length=1024)
     editors: str | None = Field(default=None, max_length=1024)
     container_title: str | None = Field(default=None, max_length=1024)
     volume: str | None = Field(default=None, max_length=64)
@@ -39,6 +42,8 @@ class SourceBase(SQLModel):
     year: int | None = None
     edition: str | None = Field(default=None, max_length=255)
     publisher: str | None = Field(default=None, max_length=255)
+    # The user's own words about the source
+    note: str | None = Field(default=None, sa_type=Text)
 
 # Sources belong to a user: two users can each have their own entry for the same book.
 class Source(SourceBase, table=True):
@@ -78,6 +83,7 @@ class SourceUpdate(SQLModel):
     year: int | None = None
     edition: str | None = Field(default=None, max_length=255)
     publisher: str | None = Field(default=None, max_length=255)
+    note: str | None = None
 
 class SourcePublic(SourceBase):
     id: uuid.UUID

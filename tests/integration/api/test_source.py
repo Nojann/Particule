@@ -231,6 +231,37 @@ def test_create_rejects_year_not_matching_published_date(client, make_user, auth
     assert r.status_code == 422
 
 
+def test_create_other_without_authors(client, session, make_user, auth_headers):
+    user = make_user()
+
+    r = client.post(f"{URL}/", headers=auth_headers(user), json={"type": "other", "title": "Conversation with Alice"})
+
+    assert r.status_code == 201
+    assert r.json()["type"] == "other"
+    assert r.json()["authors"] is None
+    assert session.get(Source, uuid.UUID(r.json()["id"])).authors is None
+
+
+def test_create_rejects_null_authors_for_book(client, make_user, auth_headers):
+    user = make_user()
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(authors=None))
+    assert r.status_code == 422
+
+
+def test_create_with_note(client, make_user, auth_headers):
+    user = make_user()
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(note="Read for the QED chapter"))
+    assert r.status_code == 201
+    assert r.json()["note"] == "Read for the QED chapter"
+
+
+def test_create_note_defaults_to_null(client, make_user, auth_headers):
+    user = make_user()
+    r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload())
+    assert r.status_code == 201
+    assert r.json()["note"] is None
+
+
 # --- GET /{source_id} --------------------------------------------------------
 def test_read_own_source(client, make_user, make_source, auth_headers):
     user = make_user()
@@ -352,6 +383,57 @@ def test_update_rejects_year_not_matching_published_date(client, session, make_u
     session.refresh(source)
     assert source.year == 2000
     assert source.published_date is None
+
+
+def test_update_note_then_clear_it(client, session, make_user, make_source, auth_headers):
+    user = make_user()
+    source = make_source(owner=user)
+    headers = auth_headers(user)
+
+    r = client.patch(f"{URL}/{source.id}", headers=headers, json={"note": "Found it in a footnote"})
+    assert r.status_code == 200
+    assert r.json()["note"] == "Found it in a footnote"
+
+    r = client.patch(f"{URL}/{source.id}", headers=headers, json={"note": None})
+    assert r.status_code == 200
+    assert r.json()["note"] is None
+    session.refresh(source)
+    assert source.note is None
+
+
+def test_update_clears_authors_of_other(client, make_user, make_source, auth_headers):
+    user = make_user()
+    source = make_source(owner=user, type="other", authors="Alice")
+
+    r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"authors": None})
+
+    assert r.status_code == 200
+    assert r.json()["authors"] is None
+
+
+def test_update_rejects_null_authors_on_book(client, session, make_user, make_source, auth_headers):
+    user = make_user()
+    source = make_source(owner=user, authors="Feynman")
+
+    r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"authors": None})
+
+    assert r.status_code == 422
+    session.refresh(source)
+    assert source.authors == "Feynman"
+
+
+def test_update_rejects_other_without_authors_becoming_book(
+    client, session, make_user, make_source, auth_headers
+):
+    """The merged source is validated: an other without authors can't become a book."""
+    user = make_user()
+    source = make_source(owner=user, type="other", authors=None)
+
+    r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"type": "book"})
+
+    assert r.status_code == 422
+    session.refresh(source)
+    assert source.type == "other"
 
 
 def test_cannot_update_another_users_source(client, session, make_user, make_source, auth_headers):
