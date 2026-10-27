@@ -100,8 +100,9 @@ docker compose --profile test up -d db-test   # throwaway MariaDB, port 3307, tm
 uv run pytest
 ```
 
-- Start `db-test` first: without it, integration tests are **skipped**, not failed.
-  Check the summary for skips before claiming tests pass.
+- `db-test` must be up: without it, integration tests are **skipped**, not failed.
+  Check the summary for skips before claiming tests pass. Claude never starts it (see
+  [Development process](#development-process)); ask the user to.
 - Tests only ever run against `particule_test` (port 3307). Never point them at the dev
   database.
 - Every behaviour change adds or updates a test: API contract in
@@ -125,11 +126,11 @@ TODO
   work directly on `main`. Commit messages follow Conventional Commits
   (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`), short, imperative and in
   English.
-- **What Claude may do without asking:** run tests, start `db-test`, and start the dev
-  server to verify a change.
+- **What Claude may do without asking:** run tests and start the dev server to verify a
+  change.
 - **Ask first** before committing or adding a dependency (`uv add`).
-- **Never** push, and never run `docker compose down -v` (it deletes the dev database
-  volume).
+- **Never** push, and never run any `docker` or `docker compose` command. When a
+  database is needed (`db-test`, dev database), ask the user to start it.
 
 ## Project management (autonomous programming)
 

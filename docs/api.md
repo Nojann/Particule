@@ -212,9 +212,9 @@ Body:
 
 | Field             | Type                                                         | Required |
 | ----------------- | ------------------------------------------------------------ | -------- |
-| `type`            | `book`, `journal_article`, `book_chapter` or `web_page`      | yes      |
+| `type`            | `book`, `journal_article`, `book_chapter`, `web_page` or `other` | yes  |
 | `title`           | string, up to 1024 characters                                | yes      |
-| `authors`         | free text, up to 1024 characters                             | yes      |
+| `authors`         | free text, up to 1024 characters                             | yes, except `other` |
 | `editors`         | free text, up to 1024 characters                             | no       |
 | `container_title` | journal or book title, up to 1024 characters                 | per type |
 | `volume`, `issue`, `pages` | string, up to 64 characters                         | no       |
@@ -223,10 +223,13 @@ Body:
 | `published_date`, `accessed_date` | date, `YYYY-MM-DD`                           | no       |
 | `year`            | integer, `null` for an undated source                        | no       |
 | `edition`, `publisher` | string, up to 255 characters                            | no       |
+| `note`            | free text, the user's own words about the source             | no       |
 
 Rules, checked on creation and on the result of every `PATCH` (`422` otherwise):
 
 - `journal_article` and `book_chapter` need a `container_title`; `web_page` needs a `url`.
+- `other` is a catch-all (podcast, lecture, conversation…): it needs only `type` and `title`,
+  and its `authors` may be absent or `null`. Every other type needs `authors`.
 - When `year` is absent, it is taken from `published_date`. When both are given they must agree.
   A `PATCH` that sends a new `published_date` without `year` sets the year again.
 

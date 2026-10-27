@@ -230,7 +230,7 @@ def make_source(session: Session, make_user: Callable[..., User]) -> Callable[..
         owner: User | None = None,
         type: SourceType = SourceType.book,
         title: str = "Test title",
-        authors: str = "Test author",
+        authors: str | None = "Test author",
         year: int | None = 2000,
         edition: str | None = "1st",
         publisher: str | None = "Test publisher",
