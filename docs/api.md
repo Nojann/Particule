@@ -214,12 +214,12 @@ Body:
 | ----------------- | ------------------------------------------------------------ | -------- |
 | `type`            | `book`, `journal_article`, `book_chapter`, `web_page` or `other` | yes  |
 | `title`           | string, up to 1024 characters                                | yes      |
-| `authors`         | free text, up to 1024 characters                             | yes, except `other` |
+| `authors`         | free text, up to 1024 characters                             | no       |
 | `editors`         | free text, up to 1024 characters                             | no       |
-| `container_title` | journal or book title, up to 1024 characters                 | per type |
+| `container_title` | journal or book title, up to 1024 characters                 | no       |
 | `volume`, `issue`, `pages` | string, up to 64 characters                         | no       |
 | `doi`             | string, up to 255 characters                                 | no       |
-| `url`             | string, up to 2048 characters                                | per type |
+| `url`             | string, up to 2048 characters                                | no       |
 | `published_date`, `accessed_date` | date, `YYYY-MM-DD`                           | no       |
 | `year`            | integer, `null` for an undated source                        | no       |
 | `edition`, `publisher` | string, up to 255 characters                            | no       |
@@ -227,9 +227,10 @@ Body:
 
 Rules, checked on creation and on the result of every `PATCH` (`422` otherwise):
 
-- `journal_article` and `book_chapter` need a `container_title`; `web_page` needs a `url`.
-- `other` is a catch-all (podcast, lecture, conversation…): it needs only `type` and `title`,
-  and its `authors` may be absent or `null`. Every other type needs `authors`.
+- Only `type` and `title` are required, whatever the type: every other field may be absent
+  or `null`, so a source can be recorded before every detail is known.
+- `other` is a catch-all for references that are not books, articles, chapters or web pages
+  (podcast, lecture, conversation…).
 - When `year` is absent, it is taken from `published_date`. When both are given they must agree.
   A `PATCH` that sends a new `published_date` without `year` sets the year again.
 

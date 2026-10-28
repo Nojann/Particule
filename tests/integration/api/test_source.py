@@ -171,7 +171,7 @@ def test_create_full_journal_article(client, make_user, auth_headers):
     assert body["publisher"] is None
 
 
-@pytest.mark.parametrize("missing", ["type", "title", "authors"])
+@pytest.mark.parametrize("missing", ["type", "title"])
 def test_create_rejects_missing_field(client, make_user, auth_headers, missing):
     user = make_user()
     payload = source_payload()
@@ -213,14 +213,19 @@ def test_create_rejects_unknown_type(client, make_user, auth_headers):
     assert r.status_code == 422
 
 
-@pytest.mark.parametrize(
-    ("type", "required"),
-    [("journal_article", "container_title"), ("book_chapter", "container_title"), ("web_page", "url")],
-)
-def test_create_rejects_type_without_required_field(client, make_user, auth_headers, type, required):
+@pytest.mark.parametrize("type", ["book", "journal_article", "book_chapter", "web_page", "other"])
+def test_create_type_with_only_title(client, session, make_user, auth_headers, type):
     user = make_user()
-    r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(type=type))
-    assert r.status_code == 422
+
+    r = client.post(f"{URL}/", headers=auth_headers(user), json={"type": type, "title": "QED"})
+
+    assert r.status_code == 201
+    body = r.json()
+    assert body["type"] == type
+    assert body["authors"] is None
+    assert body["container_title"] is None
+    assert body["url"] is None
+    assert session.get(Source, uuid.UUID(body["id"])).authors is None
 
 
 def test_create_rejects_year_not_matching_published_date(client, make_user, auth_headers):
@@ -242,10 +247,11 @@ def test_create_other_without_authors(client, session, make_user, auth_headers):
     assert session.get(Source, uuid.UUID(r.json()["id"])).authors is None
 
 
-def test_create_rejects_null_authors_for_book(client, make_user, auth_headers):
+def test_create_book_with_null_authors(client, make_user, auth_headers):
     user = make_user()
     r = client.post(f"{URL}/", headers=auth_headers(user), json=source_payload(authors=None))
-    assert r.status_code == 422
+    assert r.status_code == 201
+    assert r.json()["authors"] is None
 
 
 def test_create_with_note(client, make_user, auth_headers):
@@ -320,18 +326,17 @@ def test_update_keeps_fields_not_sent(client, make_user, make_source, auth_heade
     assert r.json()["year"] == 1964
 
 
-def test_update_rejects_type_change_without_required_field(
-    client, session, make_user, make_source, auth_headers
-):
-    """The merged source is validated: a book becoming a web page needs a url."""
+def test_update_type_without_url(client, session, make_user, make_source, auth_headers):
+    """No field is required by type: a book can become a web page without a url."""
     user = make_user()
     source = make_source(owner=user)
 
     r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"type": "web_page"})
 
-    assert r.status_code == 422
+    assert r.status_code == 200
+    assert r.json()["url"] is None
     session.refresh(source)
-    assert source.type == "book"
+    assert source.type == "web_page"
 
 
 def test_update_type_with_required_field(client, make_user, make_source, auth_headers):
@@ -411,29 +416,28 @@ def test_update_clears_authors_of_other(client, make_user, make_source, auth_hea
     assert r.json()["authors"] is None
 
 
-def test_update_rejects_null_authors_on_book(client, session, make_user, make_source, auth_headers):
+def test_update_clears_authors_of_book(client, session, make_user, make_source, auth_headers):
     user = make_user()
     source = make_source(owner=user, authors="Feynman")
 
     r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"authors": None})
 
-    assert r.status_code == 422
+    assert r.status_code == 200
+    assert r.json()["authors"] is None
     session.refresh(source)
-    assert source.authors == "Feynman"
+    assert source.authors is None
 
 
-def test_update_rejects_other_without_authors_becoming_book(
-    client, session, make_user, make_source, auth_headers
-):
-    """The merged source is validated: an other without authors can't become a book."""
+def test_update_other_without_authors_to_book(client, session, make_user, make_source, auth_headers):
     user = make_user()
     source = make_source(owner=user, type="other", authors=None)
 
     r = client.patch(f"{URL}/{source.id}", headers=auth_headers(user), json={"type": "book"})
 
-    assert r.status_code == 422
+    assert r.status_code == 200
     session.refresh(source)
-    assert source.type == "other"
+    assert source.type == "book"
+    assert source.authors is None
 
 
 def test_cannot_update_another_users_source(client, session, make_user, make_source, auth_headers):
