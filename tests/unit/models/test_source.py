@@ -1,6 +1,6 @@
 """Unit tests for SourceCreate validation (app/models/source.py).
 
-Focus: cross-field rules (year vs published_date, fields required by type).
+Focus: required fields (type and title only) and the year vs published_date rule.
 No database needed.
 """
 
@@ -28,7 +28,7 @@ def test_minimal_book_is_valid():
     assert source.editors is None
 
 
-@pytest.mark.parametrize("missing", ["type", "title", "authors"])
+@pytest.mark.parametrize("missing", ["type", "title"])
 def test_required_field(missing):
     fields = {"type": "book", "title": "QED", "authors": "Feynman, Richard"}
     del fields[missing]
@@ -74,48 +74,20 @@ def test_undated_source():
     assert make(year=None).year is None
 
 
-# --- Fields required by type -------------------------------------------------
-@pytest.mark.parametrize(
-    ("type", "required", "value"),
-    [
-        ("journal_article", "container_title", "Physical Review"),
-        ("book_chapter", "container_title", "The Feynman Lectures"),
-        ("web_page", "url", "https://example.org"),
-    ],
-)
-def test_type_requires_field(type, required, value):
-    make(type=type, **{required: value})
-    with pytest.raises(ValidationError, match=f"{type} requires {required}"):
-        make(type=type)
-
-
-# Fields that satisfy each type's rules, authors aside
-VALID_BY_TYPE = {
-    "book": {},
-    "journal_article": {"container_title": "Physical Review"},
-    "book_chapter": {"container_title": "The Feynman Lectures"},
-    "web_page": {"url": "https://example.org"},
-    "other": {},
-}
-
-
-@pytest.mark.parametrize("type", ["book", "journal_article", "book_chapter", "web_page"])
+# --- Only a title is needed, whatever the type --------------------------------
+@pytest.mark.parametrize("type", list(SourceType))
 @pytest.mark.parametrize("absent", ["missing", "null"])
-def test_type_requires_authors(type, absent):
-    fields = {"type": type, "title": "QED", **VALID_BY_TYPE[type]}
+def test_every_type_needs_only_a_title(type, absent):
+    fields = {"type": type, "title": "QED"}
     if absent == "null":
-        fields["authors"] = None
+        fields |= {"authors": None, "container_title": None, "url": None}
 
-    with pytest.raises(ValidationError, match=f"{type} requires authors"):
-        SourceCreate.model_validate(fields)
+    source = SourceCreate.model_validate(fields)
 
-
-# --- other type ---------------------------------------------------------------
-def test_other_needs_only_a_title():
-    source = SourceCreate.model_validate({"type": "other", "title": "Conversation with Alice"})
-
-    assert source.type is SourceType.other
+    assert source.type is type
     assert source.authors is None
+    assert source.container_title is None
+    assert source.url is None
 
 
 def test_other_accepts_authors():
@@ -123,9 +95,9 @@ def test_other_accepts_authors():
 
 
 # --- note ---------------------------------------------------------------------
-@pytest.mark.parametrize("type", list(VALID_BY_TYPE))
+@pytest.mark.parametrize("type", list(SourceType))
 def test_note_is_accepted_on_every_type(type):
-    source = make(type=type, note="Why it matters", **VALID_BY_TYPE[type])
+    source = make(type=type, note="Why it matters")
 
     assert source.note == "Why it matters"
 

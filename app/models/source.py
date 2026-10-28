@@ -12,22 +12,14 @@ class SourceType(str, Enum):
     journal_article = "journal_article"
     book_chapter = "book_chapter"
     web_page = "web_page"
-    # Catch-all (podcast, lecture, conversation…): only a title is required
+    # Catch-all: podcast, lecture, conversation…
     other = "other"
 
-# Fields each type needs on top of title
-REQUIRED_BY_TYPE: dict[SourceType, tuple[str, ...]] = {
-    SourceType.book: ("authors",),
-    SourceType.journal_article: ("authors", "container_title"),
-    SourceType.book_chapter: ("authors", "container_title"),
-    SourceType.web_page: ("authors", "url"),
-    SourceType.other: (),
-}
-
+# Only type and title are required: a source can be recorded before every detail is known.
 class SourceBase(SQLModel):
     type: SourceType
     title: str = Field(max_length=1024)
-    # Free text, e.g. "Feynman, Richard; Leighton, Robert". Required except for other.
+    # Free text, e.g. "Feynman, Richard; Leighton, Robert"
     authors: str | None = Field(default=None, max_length=1024)
     editors: str | None = Field(default=None, max_length=1024)
     container_title: str | None = Field(default=None, max_length=1024)
@@ -60,9 +52,6 @@ class SourceCreate(SourceBase):
                 self.year = self.published_date.year
             elif self.year != self.published_date.year:
                 raise ValueError("year must match published_date")
-        missing = [f for f in REQUIRED_BY_TYPE[self.type] if getattr(self, f) is None]
-        if missing:
-            raise ValueError(f"{self.type.value} requires {', '.join(missing)}")
         return self
 
 # Properties to receive via API on update, all are optional.
